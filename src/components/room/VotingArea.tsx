@@ -136,7 +136,7 @@ export function VotingArea({
     )
   }
 
-  const myVote = round.votes.find((v) => v.participantId === me.id)
+
   const votedCount = round.votes.filter((v) => v.hasVoted).length
   const totalVoters = participants.filter((p) => p.role !== 'OBSERVER').length
 
