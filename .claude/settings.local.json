@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx shadcn add:*)",
+      "Bash(npx tsc:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(node:*)",
+      "Bash(ls:*)",
+      "Bash(python3:*)",
+      "Bash(where npm:*)",
+      "Bash(where node)"
+    ]
+  }
+}
