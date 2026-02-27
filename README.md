@@ -107,20 +107,6 @@ Eventos suportados:
 
 O host pode gerar links de convite com role especifica (`PARTICIPANT` ou `OBSERVER`), data de expiracao opcional e limite de usos. Links revogados deixam de funcionar imediatamente.
 
----
-
-## Variaveis de ambiente
-
-Crie um arquivo `.env` na raiz do projeto:
-
-```env
-VITE_API_URL=http://localhost:8080
-VITE_WS_URL=http://localhost:8080/ws
-```
-
-Se `VITE_API_URL` nao for definida, o cliente usa `https://poker-planning-server.onrender.com` como fallback. Se `VITE_WS_URL` nao for definida, usa `http://localhost:8080/ws`.
-
----
 
 ## Instalacao e execucao
 
