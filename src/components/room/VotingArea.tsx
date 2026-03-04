@@ -137,7 +137,8 @@ export function VotingArea({
   }
 
 
-  const votedCount = round.votes.filter((v) => v.hasVoted).length
+  const votes = round.votes ?? []
+  const votedCount = votes.filter((v) => v.hasVoted).length
   const totalVoters = participants.filter((p) => p.role !== 'OBSERVER').length
 
   return (
@@ -161,7 +162,7 @@ export function VotingArea({
       <div className="flex flex-wrap gap-3 justify-center">
         {participants.map((p) => {
           if (p.role === 'OBSERVER') return null
-          const vote = round.votes.find((v) => v.participantId === p.id)
+          const vote = votes.find((v) => v.participantId === p.id)
           const hasVoted = vote?.hasVoted ?? false
           const revealed = round.status === 'REVEALED'
 
@@ -235,7 +236,7 @@ export function VotingArea({
 
       {/* Revealed vote stats */}
       {round.status === 'REVEALED' && (
-        <VoteStats votes={round.votes} participants={participants} />
+        <VoteStats votes={votes} participants={participants} />
       )}
 
       {/* Host controls */}
