@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {  useState } from 'react'
 import { Copy, Link, Trash2, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -12,8 +11,10 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { createInvite, listInvites, revokeInvite } from '@/api/invites'
-import type { InviteCreateRequest, InviteResponse, ParticipantRole } from '@/types'
+import type { ParticipantRole } from '@/types'
+import { useGetInvites } from '@/hooks/invite/use-get-invites'
+import { useCreateInvite } from '@/hooks/invite/use-create-invite'
+import { useRevokeInvite } from '@/hooks/invite/use-revoke-invite'
 
 interface Props {
   roomId: string
@@ -22,7 +23,7 @@ interface Props {
 const FRONTEND_URL = window.location.origin
 
 export function InvitePanel({ roomId }: Props) {
-  const queryClient = useQueryClient()
+  
   const [createOpen, setCreateOpen] = useState(false)
   const [form, setForm] = useState<{
     role: ParticipantRole
@@ -30,44 +31,18 @@ export function InvitePanel({ roomId }: Props) {
     expiresAt: string
   }>({ role: 'PARTICIPANT', maxUses: '', expiresAt: '' })
 
-  const { data: invites, isLoading } = useQuery({
-    queryKey: ['invites', roomId],
-    queryFn: () => listInvites(roomId),
-  })
+const { invites, isLoading } = useGetInvites(roomId)
 
-  const createMutation = useMutation({
-    mutationFn: () => {
-      const req: InviteCreateRequest = { role: form.role }
-      if (form.maxUses) req.maxUses = parseInt(form.maxUses, 10)
-      if (form.expiresAt) req.expiresAt = new Date(form.expiresAt).toISOString()
-      return createInvite(roomId, req)
-    },
-    onSuccess: (invite) => {
-      queryClient.setQueryData<InviteResponse[]>(['invites', roomId], (old) => [
-        ...(old ?? []),
-        invite,
-      ])
-      toast.success('Convite criado!')
-      if (invite.token) {
-        const link = `${FRONTEND_URL}/invite/${invite.token}`
-        navigator.clipboard.writeText(link)
-        toast.info('Link copiado para a área de transferência')
-      }
-      setCreateOpen(false)
-    },
-    onError: () => toast.error('Erro ao criar convite'),
-  })
+const {createInvite, isCreating} = useCreateInvite({roomId, options:{
+  onSuccess: () => {
+    setCreateOpen(false)
+  },
 
-  const revokeMutation = useMutation({
-    mutationFn: (inviteId: string) => revokeInvite(roomId, inviteId),
-    onSuccess: (_, inviteId) => {
-      queryClient.setQueryData<InviteResponse[]>(['invites', roomId], (old) =>
-        old?.map((i) => (i.id === inviteId ? { ...i, revoked: true } : i)) ?? [],
-      )
-      toast.success('Convite revogado')
-    },
-    onError: () => toast.error('Erro ao revogar convite'),
-  })
+}})
+
+ 
+
+const {isRevoking,revokeInvite} = useRevokeInvite({roomId,})
 
   function copyLink(token: string) {
     navigator.clipboard.writeText(`${FRONTEND_URL}/invite/${token}`)
@@ -75,6 +50,14 @@ export function InvitePanel({ roomId }: Props) {
   }
 
   const activeInvites = invites?.filter((i) => !i.revoked) ?? []
+
+  const onCreateInvite = () => {
+    createInvite({
+      role: form.role,
+      maxUses: form.maxUses ? parseInt(form.maxUses, 10) : undefined,
+      expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : undefined,
+    })
+  }
 
   return (
     <div className="space-y-2">
@@ -132,7 +115,7 @@ export function InvitePanel({ roomId }: Props) {
             <button
               className="p-1 border border-foreground/30 hover:border-destructive hover:bg-destructive/10 text-destructive cursor-pointer"
               title="Revogar"
-              onClick={() => revokeMutation.mutate(invite.id)}
+              onClick={() => revokeInvite(invite.id)}
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
@@ -176,11 +159,11 @@ export function InvitePanel({ roomId }: Props) {
               />
             </div>
             <Button
-              className="w-full"
-              onClick={() => createMutation.mutate()}
-              disabled={createMutation.isPending}
+              className="w-full"  
+              onClick={onCreateInvite}          
+              disabled={isCreating}
             >
-              {createMutation.isPending ? 'Criando...' : 'Criar e copiar link'}
+              {isCreating ? 'Criando...' : 'Criar e copiar link'}
             </Button>
           </div>
         </DialogContent>

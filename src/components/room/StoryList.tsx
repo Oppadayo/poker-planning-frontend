@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation} from '@tanstack/react-query'
 import { Plus, Pencil, Trash2, CheckCircle2, Circle, PlayCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -12,8 +12,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { createStory, updateStory, deleteStory, selectStory } from '@/api/stories'
-import type { ParticipantResponse, RoomStateResponse, StoryResponse } from '@/types'
+import {  selectStory } from '@/api/stories'
+import type { ParticipantResponse, StoryResponse } from '@/types'
+import { useCreateStory } from '@/hooks/story/use-create-story'
+import { useUpdateStory } from '@/hooks/story/use-update-story'
+import { useDeleteStory } from '@/hooks/story/use-delete-story'
+
 
 interface Props {
   stories: StoryResponse[]
@@ -35,51 +39,37 @@ function storyStatusIcon(status: StoryResponse['status']) {
 }
 
 export function StoryList({ stories, me, roomId, currentStoryId }: Props) {
-  const queryClient = useQueryClient()
+
   const isHost = me.role === 'HOST'
   const [createOpen, setCreateOpen] = useState(false)
   const [editStory, setEditStory] = useState<StoryResponse | null>(null)
   const [form, setForm] = useState<StoryForm>({ title: '', description: '', externalRef: '' })
 
-  const createMutation = useMutation({
-    mutationFn: (data: StoryForm) => createStory(roomId, data),
-    onSuccess: (story) => {
-      queryClient.setQueryData<RoomStateResponse>(['roomState', roomId], (old) => {
-        if (!old) return old
-        return { ...old, stories: [...old.stories, story] }
-      })
-      toast.success('História criada')
-      setCreateOpen(false)
-      setForm({ title: '', description: '', externalRef: '' })
-    },
-    onError: () => toast.error('Erro ao criar história'),
-  })
+ const { createStory, isCreating}= useCreateStory({roomId, options:{
+  onSuccess: () => {
+    setCreateOpen(false)
+  },
+}})
 
-  const updateMutation = useMutation({
-    mutationFn: (data: StoryForm) =>
-      updateStory(roomId, editStory!.id, data),
-    onSuccess: (story) => {
-      queryClient.setQueryData<RoomStateResponse>(['roomState', roomId], (old) => {
-        if (!old) return old
-        return { ...old, stories: old.stories.map((s) => (s.id === story.id ? story : s)) }
-      })
-      toast.success('História atualizada')
-      setEditStory(null)
-    },
-    onError: () => toast.error('Erro ao atualizar história'),
-  })
+const onCreateStory = () => {
+  createStory(form)
+}
 
-  const deleteMutation = useMutation({
-    mutationFn: (storyId: string) => deleteStory(roomId, storyId),
-    onSuccess: (_, storyId) => {
-      queryClient.setQueryData<RoomStateResponse>(['roomState', roomId], (old) => {
-        if (!old) return old
-        return { ...old, stories: old.stories.filter((s) => s.id !== storyId) }
-      })
-      toast.success('História removida')
-    },
-    onError: () => toast.error('Erro ao remover história'),
-  })
+const { updateStory, isUpdating } = useUpdateStory({ roomId, storyId: editStory?.id, options: {
+  onSuccess() {
+    setEditStory(null)
+  },
+  onError() {
+    setEditStory(null)
+  }
+} })
+
+  const onUpdateStory = () => {
+    if (!editStory) return
+    updateStory(form)
+  }
+
+    const { deleteStory } = useDeleteStory({ roomId, options: {} })
 
   const selectMutation = useMutation({
     mutationFn: (storyId: string) => selectStory(roomId, storyId),
@@ -161,7 +151,7 @@ export function StoryList({ stories, me, roomId, currentStoryId }: Props) {
                 className="p-1 border border-foreground/30 hover:border-destructive hover:bg-destructive/10 text-destructive cursor-pointer"
                 onClick={(e) => {
                   e.stopPropagation()
-                  if (confirm('Remover esta história?')) deleteMutation.mutate(story.id)
+                  if (confirm('Remover esta história?')) deleteStory(story.id)
                 }}
               >
                 <Trash2 className="h-3 w-3" />
@@ -179,10 +169,10 @@ export function StoryList({ stories, me, roomId, currentStoryId }: Props) {
           </DialogHeader>
           <StoryFormFields form={form} onChange={setForm} />
           <Button
-            onClick={() => createMutation.mutate(form)}
-            disabled={!form.title.trim() || createMutation.isPending}
+            onClick={() => onCreateStory()}
+            disabled={!form.title.trim() || isCreating}
           >
-            {createMutation.isPending ? 'Criando...' : 'Criar'}
+            {isCreating ? 'Criando...' : 'Criar'}
           </Button>
         </DialogContent>
       </Dialog>
@@ -195,10 +185,10 @@ export function StoryList({ stories, me, roomId, currentStoryId }: Props) {
           </DialogHeader>
           <StoryFormFields form={form} onChange={setForm} />
           <Button
-            onClick={() => updateMutation.mutate(form)}
-            disabled={!form.title.trim() || updateMutation.isPending}
+            onClick={() => onUpdateStory()}
+            disabled={!form.title.trim() || isUpdating}
           >
-            {updateMutation.isPending ? 'Salvando...' : 'Salvar'}
+            {isUpdating ? 'Salvando...' : 'Salvar'}
           </Button>
         </DialogContent>
       </Dialog>
