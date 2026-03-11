@@ -1,4 +1,5 @@
 import { createStory } from "@/api/stories"
+import { QUERY_KEYS } from "@/constants/query-keys"
 import type { MutationOptions } from "@/mutation-options"
 import type { StoryResponse } from "@/types"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
@@ -19,7 +20,8 @@ export function useCreateStory({roomId, options }: useCreateStoryProps ) {
         if (options?.onSuccess) {
             options.onSuccess(story)
         }
-        queryClient.invalidateQueries({queryKey: ['roomState', roomId]})
+        queryClient.invalidateQueries({queryKey: [QUERY_KEYS.ROOM_STATE, roomId]})
+        queryClient.invalidateQueries({queryKey: [QUERY_KEYS.STORY_LIST]})
       
         toast.success('História criada')
     },

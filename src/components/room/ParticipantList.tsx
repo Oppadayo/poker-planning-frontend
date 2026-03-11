@@ -1,6 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Crown, MoreHorizontal, UserMinus, ArrowRightLeft } from 'lucide-react'
-import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
@@ -8,8 +6,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { kickParticipant, transferHost } from '@/api/rooms'
-import type { ParticipantResponse, RoomStateResponse } from '@/types'
+import type { ParticipantResponse } from '@/types'
+import { useKickParticipant } from '@/hooks/room/use-kick-participant'
+import { useTransferHost } from '@/hooks/room/use-transfer-host'
 
 interface Props {
   participants: ParticipantResponse[]
@@ -18,31 +17,8 @@ interface Props {
 }
 
 export function ParticipantList({ participants, me, roomId }: Props) {
-  const queryClient = useQueryClient()
-
-  const kickMutation = useMutation({
-    mutationFn: (participantId: string) => kickParticipant(roomId, participantId),
-    onSuccess: (_, participantId) => {
-      queryClient.setQueryData<RoomStateResponse>(['roomState', roomId], (old) => {
-        if (!old) return old
-        return {
-          ...old,
-          participants: old.participants.filter((p) => p.id !== participantId),
-        }
-      })
-      toast.success('Participante removido')
-    },
-    onError: () => toast.error('Erro ao remover participante'),
-  })
-
-  const transferMutation = useMutation({
-    mutationFn: (participantId: string) => transferHost(roomId, participantId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['roomState', roomId] })
-      toast.success('Host transferido')
-    },
-    onError: () => toast.error('Erro ao transferir host'),
-  })
+  const { kickParticipant, isKicking } = useKickParticipant({ roomId })
+  const { transferHost, isTransferring } = useTransferHost({ roomId })
 
   const isHost = me.role === 'HOST'
 
@@ -80,15 +56,15 @@ export function ParticipantList({ participants, me, roomId }: Props) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
-                  onClick={() => transferMutation.mutate(p.id)}
-                  disabled={transferMutation.isPending}
+                  onClick={() => transferHost(p.id)}
+                  disabled={isTransferring}
                 >
                   <ArrowRightLeft className="h-4 w-4 mr-2" />
                   Transferir host
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => kickMutation.mutate(p.id)}
-                  disabled={kickMutation.isPending}
+                  onClick={() => kickParticipant(p.id)}
+                  disabled={isKicking}
                   className="text-destructive"
                 >
                   <UserMinus className="h-4 w-4 mr-2" />

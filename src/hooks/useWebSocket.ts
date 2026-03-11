@@ -12,6 +12,7 @@ import type {
   RoundResponse,
   RoomStateResponse,
 } from '@/types'
+import { QUERY_KEYS } from '@/constants/query-keys'
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'http://localhost:8080/ws'
 
@@ -107,6 +108,8 @@ export function useWebSocket(roomId: string | null) {
 
         case 'STORY_REORDERED': {
           const stories = event.payload as StoryResponse[]
+          queryClient.invalidateQueries({ queryKey: stateKey})
+          queryClient.invalidateQueries({queryKey: [QUERY_KEYS.STORY_LIST, roomId]})
           queryClient.setQueryData<RoomStateResponse>(stateKey, (old) => {
             if (!old) return old
             return { ...old, stories }
@@ -173,14 +176,14 @@ export function useWebSocket(roomId: string | null) {
         }
 
         case 'ROUND_FINALIZED': {
-          const round = event.payload as RoundResponse
+          const { storyId, finalEstimate } = event.payload as { storyId: string; finalEstimate: string }
           queryClient.setQueryData<RoomStateResponse>(stateKey, (old) => {
             if (!old) return old
             return {
               ...old,
-              round,
+              round: old.round ? { ...old.round, status: 'FINALIZED' } : old.round,
               stories: old.stories.map((s) =>
-                s.id === round.storyId ? { ...s, status: 'ESTIMATED' } : s,
+                s.id === storyId ? { ...s, status: 'ESTIMATED', finalEstimate } : s,
               ),
             }
           })

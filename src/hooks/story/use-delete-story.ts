@@ -1,4 +1,5 @@
 import { deleteStory } from "@/api/stories"
+import { QUERY_KEYS } from "@/constants/query-keys"
 import type { MutationOptions } from "@/mutation-options"
 import type { RoomStateResponse } from "@/types"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
@@ -15,15 +16,14 @@ export function useDeleteStory({ roomId, options }: useDeleteStoryProps    ){
 
      const deleteMutation = useMutation({
     mutationFn: (storyId: string) => deleteStory(roomId, storyId),
-    onSuccess: (_, storyId) => {
+    onSuccess: (_) => {
         if (options?.onSuccess) {
             options.onSuccess(_)
         }
 
-      queryClient.setQueryData<RoomStateResponse>(['roomState', roomId], (old) => {
-        if (!old) return old
-        return { ...old, stories: old.stories.filter((s) => s.id !== storyId) }
-      })
+        queryClient.invalidateQueries({queryKey: [QUERY_KEYS.ROOM_STATE, roomId]})
+        queryClient.invalidateQueries({queryKey: [QUERY_KEYS.STORY_LIST]})
+      
       toast.success('História removida')
     },
     onError: (error) => {

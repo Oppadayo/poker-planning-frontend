@@ -1,9 +1,11 @@
 import { revokeInvite } from "@/api/invites"
-import { useMutation, useQueryClient, type MutationOptions } from "@tanstack/react-query"
+import { QUERY_KEYS } from "@/constants/query-keys"
+import type { MutationOptions } from "@/mutation-options"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
 type useRevokeInviteProps = {
-    options?: MutationOptions<void>
+    options?: MutationOptions<{inviteId: string}>
     roomId: string
 }
 
@@ -15,12 +17,12 @@ const queryClient = useQueryClient()
 
     const revokeMutation = useMutation({
     mutationFn: (inviteId: string) => revokeInvite(roomId, inviteId),
-    onSuccess: (_) => {
+    onSuccess: (inviteId) => {
         if (options?.onSuccess) {
-            options.onSuccess(_)
+            options.onSuccess(inviteId)
         }
 
-        queryClient.invalidateQueries(['invites', roomId])
+        queryClient.invalidateQueries({queryKey: [QUERY_KEYS.INVITES, inviteId]})
         toast.success('Convite revogado')
     },
     onError: (error) => {if(options?.onError) {options.onError(error)}

@@ -1,7 +1,5 @@
 import { useState } from 'react'
-import { useMutation} from '@tanstack/react-query'
 import { Plus, Pencil, Trash2, CheckCircle2, Circle, PlayCircle } from 'lucide-react'
-import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -12,11 +10,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {  selectStory } from '@/api/stories'
 import type { ParticipantResponse, StoryResponse } from '@/types'
 import { useCreateStory } from '@/hooks/story/use-create-story'
 import { useUpdateStory } from '@/hooks/story/use-update-story'
 import { useDeleteStory } from '@/hooks/story/use-delete-story'
+import { useSelectStory } from '@/hooks/story/use-select-story'
 
 
 interface Props {
@@ -69,12 +67,8 @@ const { updateStory, isUpdating } = useUpdateStory({ roomId, storyId: editStory?
     updateStory(form)
   }
 
-    const { deleteStory } = useDeleteStory({ roomId, options: {} })
-
-  const selectMutation = useMutation({
-    mutationFn: (storyId: string) => selectStory(roomId, storyId),
-    onError: () => toast.error('Erro ao selecionar história'),
-  })
+  const { deleteStory } = useDeleteStory({ roomId, options: {} })
+  const { selectStory } = useSelectStory({ roomId })
 
   function openEdit(story: StoryResponse) {
     setEditStory(story)
@@ -122,14 +116,14 @@ const { updateStory, isUpdating } = useUpdateStory({ roomId, storyId: editStory?
               ? 'border-foreground bg-primary/10 shadow-brutal-sm'
               : 'border-foreground/30 hover:border-foreground'
           }`}
-          onClick={() => isHost && story.status !== 'SELECTED' && selectMutation.mutate(story.id)}
+          onClick={() => isHost && story.status !== 'SELECTED' && selectStory(story.id)}
         >
           <div className="mt-0.5 flex-shrink-0">{storyStatusIcon(story.status)}</div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold truncate">{story.title}</p>
-           
+          
           </div>
-          {story.status === 'ESTIMATED' && story.finalEstimate && (
+          {story.finalEstimate && (
             <Badge variant="default" className="text-xs flex-shrink-0 bg-primary text-primary-foreground">
               {story.finalEstimate}
             </Badge>

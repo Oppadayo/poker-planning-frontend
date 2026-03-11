@@ -15,13 +15,14 @@ export async function listInvites(roomId: string): Promise<InviteResponse[]> {
   return res.data
 }
 
-export async function revokeInvite(roomId: string, inviteId: string): Promise<void> {
-  await apiClient.post(`/invites/${inviteId}/revoke`, null, {
+export async function revokeInvite(roomId: string, inviteId: string): Promise<{inviteId: string}> {
+  const res = await apiClient.post(`/invites/${inviteId}/revoke`, null, {
     headers: {
       ...withGuestToken(roomId),
       'X-Room-Id': roomId,
     },
   })
+  return res.data
 }
 
 export async function getInvite(token: string): Promise<InviteResponse> {

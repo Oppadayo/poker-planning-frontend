@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Copy, Wifi, WifiOff, LogOut, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { closeRoom, leaveRoom } from '@/api/rooms'
 import { useWsStore } from '@/store/wsStore'
 import type { ParticipantResponse, RoomResponse } from '@/types'
+import { useLeaveRoom } from '@/hooks/room/use-leave-room'
+import { useCloseRoom } from '@/hooks/room/use-close-room'
 
 interface Props {
   room: RoomResponse
@@ -16,26 +16,17 @@ interface Props {
 
 export function RoomHeader({ room, me }: Props) {
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
   const wsStatus = useWsStore((s) => s.status)
   const [copying, setCopying] = useState(false)
 
-  const leaveMutation = useMutation({
-    mutationFn: () => leaveRoom(room.id),
-    onSuccess: () => {
-      queryClient.removeQueries({ queryKey: ['roomState', room.id] })
-      navigate('/')
-    },
-    onError: () => toast.error('Erro ao sair da sala'),
+  const { leaveRoom, isLeaving } = useLeaveRoom({
+    roomId: room.id,
+    options: { onSuccess: () => navigate('/') },
   })
 
-  const closeMutation = useMutation({
-    mutationFn: () => closeRoom(room.id),
-    onSuccess: () => {
-      queryClient.removeQueries({ queryKey: ['roomState', room.id] })
-      navigate('/')
-    },
-    onError: () => toast.error('Erro ao fechar a sala'),
+  const { closeRoom, isClosing } = useCloseRoom({
+    roomId: room.id,
+    options: { onSuccess: () => navigate('/') },
   })
 
   function copyCode() {
@@ -76,9 +67,9 @@ export function RoomHeader({ room, me }: Props) {
             variant="destructive"
             size="sm"
             onClick={() => {
-              if (confirm('Fechar a sala permanentemente?')) closeMutation.mutate()
+              if (confirm('Fechar a sala permanentemente?')) closeRoom()
             }}
-            disabled={closeMutation.isPending}
+            disabled={isClosing}
           >
             <X className="h-4 w-4 mr-1" />
             Fechar sala
@@ -88,8 +79,8 @@ export function RoomHeader({ room, me }: Props) {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => leaveMutation.mutate()}
-          disabled={leaveMutation.isPending}
+          onClick={() => leaveRoom()}
+          disabled={isLeaving}
         >
           <LogOut className="h-4 w-4 mr-1" />
           Sair

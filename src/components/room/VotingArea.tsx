@@ -1,18 +1,19 @@
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { castVote, startRound, revealVotes, resetRound, finalizeRound } from '@/api/rounds'
 import type {
   ParticipantResponse,
-  RoomStateResponse,
   RoundResponse,
   StoryResponse,
   VoteResponse,
 } from '@/types'
 import { DECK_VALUES } from '@/types'
+import { useStartRound } from '@/hooks/round/use-start-round'
+import { useCastVote } from '@/hooks/round/use-cast-vote'
+import { useRevealVotes } from '@/hooks/round/use-reveal-votes'
+import { useResetRound } from '@/hooks/round/use-reset-round'
+import { useFinalizeRound } from '@/hooks/round/use-finalize-round'
 
 interface Props {
   round: RoundResponse | undefined
@@ -33,7 +34,6 @@ export function VotingArea({
   deckType,
   onVoteSent,
 }: Props) {
-  const queryClient = useQueryClient()
   const isHost = me.role === 'HOST'
   const isObserver = me.role === 'OBSERVER'
   const [selectedCard, setSelectedCard] = useState<string | null>(null)
@@ -42,70 +42,36 @@ export function VotingArea({
 
   const deckValues = DECK_VALUES[deckType as keyof typeof DECK_VALUES] ?? []
 
-  const startMutation = useMutation({
-    mutationFn: () => startRound(roomId),
-    onSuccess: (round) => {
-      queryClient.setQueryData<RoomStateResponse>(['roomState', roomId], (old) => {
-        if (!old) return old
-        return { ...old, round }
-      })
-      setSelectedCard(null)
-    },
-    onError: () => toast.error('Erro ao iniciar rodada'),
+  const { startRound, isStarting } = useStartRound({
+    roomId,
+    options: { onSuccess: () => setSelectedCard(null) },
   })
 
-  const voteMutation = useMutation({
-    mutationFn: (value: string) => castVote(roomId, { value }),
-    onSuccess: (_, value) => {
-      setSelectedCard(value)
-      onVoteSent?.(value)
+  const { castVote, isCasting } = useCastVote({
+    roomId,
+    options: {
+      onSuccess: (value) => {
+        setSelectedCard(value)
+        onVoteSent?.(value)
+      },
     },
-    onError: () => toast.error('Erro ao registrar voto'),
   })
 
-  const revealMutation = useMutation({
-    mutationFn: () => revealVotes(roomId),
-    onSuccess: (round) => {
-      queryClient.setQueryData<RoomStateResponse>(['roomState', roomId], (old) => {
-        if (!old) return old
-        return { ...old, round }
-      })
-    },
-    onError: () => toast.error('Erro ao revelar votos'),
+  const { revealVotes, isRevealing } = useRevealVotes({ roomId })
+
+  const { resetRound, isResetting } = useResetRound({
+    roomId,
+    options: { onSuccess: () => setSelectedCard(null) },
   })
 
-  const resetMutation = useMutation({
-    mutationFn: () => resetRound(roomId),
-    onSuccess: (round) => {
-      queryClient.setQueryData<RoomStateResponse>(['roomState', roomId], (old) => {
-        if (!old) return old
-        return { ...old, round }
-      })
-      setSelectedCard(null)
+  const { finalizeRound, isFinalizing } = useFinalizeRound({
+    roomId,
+    options: {
+      onSuccess: () => {
+        setFinalEstimate('')
+        setSelectedCard(null)
+      },
     },
-    onError: () => toast.error('Erro ao resetar rodada'),
-  })
-
-  const finalizeMutation = useMutation({
-    mutationFn: () => finalizeRound(roomId, { finalEstimate }),
-    onSuccess: (round) => {
-      queryClient.setQueryData<RoomStateResponse>(['roomState', roomId], (old) => {
-        if (!old) return old
-        return {
-          ...old,
-          round,
-          stories: old.stories.map((s) =>
-            s.id === round.storyId
-              ? { ...s, status: 'ESTIMATED', finalEstimate: round.id }
-              : s,
-          ),
-        }
-      })
-      setFinalEstimate('')
-      setSelectedCard(null)
-      toast.success('Estimativa finalizada!')
-    },
-    onError: () => toast.error('Erro ao finalizar estimativa'),
   })
 
   // No active round
@@ -117,10 +83,15 @@ export function VotingArea({
             <div className="border-2 border-foreground bg-card px-4 py-3 shadow-brutal">
               <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">História selecionada</p>
               <p className="font-extrabold text-xl">{currentStory.title}</p>
+              {currentStory.finalEstimate && (
+                <p className="text-sm font-semibold text-muted-foreground mt-1">
+                  Estimativa: <span className="font-extrabold text-foreground">{currentStory.finalEstimate}</span>
+                </p>
+              )}
             </div>
             {isHost && (
-              <Button size="lg" onClick={() => startMutation.mutate()} disabled={startMutation.isPending}>
-                {startMutation.isPending ? 'Iniciando...' : '▶ Iniciar votação'}
+              <Button size="lg" onClick={() => startRound()} disabled={isStarting}>
+                {isStarting ? 'Iniciando...' : '▶ Iniciar votação'}
               </Button>
             )}
             {!isHost && (
@@ -199,8 +170,8 @@ export function VotingArea({
               {deckValues.map((v) => (
                 <button
                   key={v}
-                  onClick={() => voteMutation.mutate(v)}
-                  disabled={voteMutation.isPending}
+                  onClick={() => castVote(v)}
+                  disabled={isCasting}
                   className={`w-14 h-20 border-2 border-foreground text-lg font-extrabold transition-[transform,box-shadow] cursor-pointer select-none ${
                     selectedCard === v
                       ? 'bg-primary text-primary-foreground translate-x-[4px] translate-y-[4px] shadow-none'
@@ -219,13 +190,13 @@ export function VotingArea({
                 onChange={(e) => setCustomVote(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && customVote.trim()) {
-                    voteMutation.mutate(customVote.trim())
+                    castVote(customVote.trim())
                   }
                 }}
               />
               <Button
-                onClick={() => voteMutation.mutate(customVote.trim())}
-                disabled={!customVote.trim() || voteMutation.isPending}
+                onClick={() => castVote(customVote.trim())}
+                disabled={!customVote.trim() || isCasting}
               >
                 Votar
               </Button>
@@ -245,8 +216,8 @@ export function VotingArea({
           {round.status === 'VOTING' && (
             <Button
               variant="secondary"
-              onClick={() => revealMutation.mutate()}
-              disabled={revealMutation.isPending}
+              onClick={() => revealVotes()}
+              disabled={isRevealing}
             >
               Revelar votos
             </Button>
@@ -255,8 +226,8 @@ export function VotingArea({
             <>
               <Button
                 variant="outline"
-                onClick={() => resetMutation.mutate()}
-                disabled={resetMutation.isPending}
+                onClick={() => resetRound()}
+                disabled={isResetting}
               >
                 Revotar
               </Button>
@@ -268,8 +239,8 @@ export function VotingArea({
                   onChange={(e) => setFinalEstimate(e.target.value)}
                 />
                 <Button
-                  onClick={() => finalizeMutation.mutate()}
-                  disabled={!finalEstimate.trim() || finalizeMutation.isPending}
+                  onClick={() => finalizeRound(finalEstimate)}
+                  disabled={!finalEstimate.trim() || isFinalizing}
                 >
                   Finalizar
                 </Button>
