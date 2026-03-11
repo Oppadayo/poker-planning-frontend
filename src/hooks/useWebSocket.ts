@@ -158,11 +158,7 @@ export function useWebSocket(roomId: string | null) {
         }
 
         case 'ROUND_REVEALED': {
-          const round = event.payload as RoundResponse
-          queryClient.setQueryData<RoomStateResponse>(stateKey, (old) => {
-            if (!old) return old
-            return { ...old, round }
-          })
+          queryClient.invalidateQueries({ queryKey: stateKey })
           break
         }
 
