@@ -16,6 +16,12 @@ import { getRoomState } from '@/api/rooms'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useWsStore } from '@/store/wsStore'
 
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable"
+
 export function RoomPage() {
   const { roomId } = useParams<{ roomId: string }>()
   const navigate = useNavigate()
@@ -105,7 +111,12 @@ export function RoomPage() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar */}
-        <aside className="w-64 border-r-2 border-foreground flex-shrink-0 flex flex-col bg-sidebar">
+        <ResizablePanelGroup
+      orientation="horizontal"
+     // className="max-w-sm rounded-lg border"
+    >
+      <ResizablePanel >
+        <aside className="h-full border-r-2 border-foreground flex-shrink-0 flex flex-col bg-sidebar">
           <ScrollArea className="flex-1 p-3">
             <ParticipantList participants={participants} me={me} roomId={room.id} />
             <Separator className="my-4 border-foreground/20" />
@@ -123,8 +134,10 @@ export function RoomPage() {
             )}
           </ScrollArea>
         </aside>
-
+  </ResizablePanel>
+  <ResizableHandle withHandle />
         {/* Main voting area */}
+        <ResizablePanel defaultSize="80%">
         <main className="flex-1 overflow-hidden">
           {/* Mobile: tabs */}
           <div className="md:hidden h-full">
@@ -170,6 +183,9 @@ export function RoomPage() {
             />
           </div>
         </main>
+        </ResizablePanel>
+        </ResizablePanelGroup>
+        
       </div>
     </div>
   )

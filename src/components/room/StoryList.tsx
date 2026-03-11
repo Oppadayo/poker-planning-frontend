@@ -88,7 +88,7 @@ const { updateStory, isUpdating } = useUpdateStory({ roomId, storyId: editStory?
   const sorted = [...stories].sort((a, b) => a.orderIndex - b.orderIndex)
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 mr-1">
       <div className="flex items-center justify-between">
         <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
           Histórias ({stories.length})
@@ -127,9 +127,7 @@ const { updateStory, isUpdating } = useUpdateStory({ roomId, storyId: editStory?
           <div className="mt-0.5 flex-shrink-0">{storyStatusIcon(story.status)}</div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold truncate">{story.title}</p>
-            {story.externalRef && (
-              <p className="text-xs text-muted-foreground font-mono truncate">{story.externalRef}</p>
-            )}
+           
           </div>
           {story.status === 'ESTIMATED' && story.finalEstimate && (
             <Badge variant="default" className="text-xs flex-shrink-0 bg-primary text-primary-foreground">

@@ -97,7 +97,7 @@ export function HomePage() {
       {/* Navbar */}
       <nav className="border-b-2 border-foreground px-4 py-3 flex items-center justify-between bg-primary">
         <div className="flex items-center gap-2">
-          <span className="text-xl">🃏</span>
+         
           <span className="font-black text-lg tracking-tight">Poker Planning</span>
         </div>
         <div className="flex items-center gap-2">

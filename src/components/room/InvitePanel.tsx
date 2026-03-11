@@ -60,7 +60,7 @@ const {isRevoking,revokeInvite} = useRevokeInvite({roomId,})
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 mr-1">
       <div className="flex items-center justify-between">
         <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
           Convites
