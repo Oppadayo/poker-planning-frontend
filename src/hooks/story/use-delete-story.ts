@@ -1,7 +1,7 @@
 import { deleteStory } from "@/api/stories"
 import { QUERY_KEYS } from "@/constants/query-keys"
 import type { MutationOptions } from "@/mutation-options"
-import type { RoomStateResponse } from "@/types"
+
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 

@@ -53,7 +53,7 @@ const onCreateStory = () => {
   createStory(form)
 }
 
-const { updateStory, isUpdating } = useUpdateStory({ roomId, storyId: editStory?.id, options: {
+const { updateStory, isUpdating } = useUpdateStory({ roomId, storyId: editStory?.id || '', options: {
   onSuccess() {
     setEditStory(null)
   },

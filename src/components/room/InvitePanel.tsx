@@ -42,7 +42,7 @@ const {createInvite, isCreating} = useCreateInvite({roomId, options:{
 
  
 
-const {isRevoking,revokeInvite} = useRevokeInvite({roomId,})
+const {revokeInvite} = useRevokeInvite({roomId,})
 
   function copyLink(token: string) {
     navigator.clipboard.writeText(`${FRONTEND_URL}/invite/${token}`)

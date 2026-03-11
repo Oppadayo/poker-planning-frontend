@@ -1,6 +1,7 @@
 import { createInvite } from "@/api/invites"
+import type { MutationOptions } from "@/mutation-options"
 import type { InviteCreateRequest, InviteResponse } from "@/types"
-import { useMutation, useQueryClient, type MutationOptions } from "@tanstack/react-query"
+import { useMutation, useQueryClient} from "@tanstack/react-query"
 import { toast } from "sonner"
 
 const FRONTEND_URL = window.location.origin
