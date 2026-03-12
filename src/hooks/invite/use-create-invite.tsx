@@ -1,4 +1,5 @@
 import { createInvite } from "@/api/invites"
+import { QUERY_KEYS } from "@/constants/query-keys"
 import type { MutationOptions } from "@/mutation-options"
 import type { InviteCreateRequest, InviteResponse } from "@/types"
 import { useMutation, useQueryClient} from "@tanstack/react-query"
@@ -28,10 +29,7 @@ const createMutation = useMutation({
             options.onSuccess(invite)
         }
 
-      queryClient.setQueryData<InviteResponse[]>(['invites', roomId], (old) => [
-        ...(old ?? []),
-        invite,
-      ])
+          queryClient.invalidateQueries({queryKey: [QUERY_KEYS.INVITES, roomId]})
       toast.success('Convite criado!')
       if (invite.token) {
         const link = `${FRONTEND_URL}/invite/${invite.token}`

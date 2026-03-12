@@ -1,4 +1,5 @@
-import {  useState } from 'react'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
 import { Copy, Link, Trash2, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -20,29 +21,34 @@ interface Props {
   roomId: string
 }
 
+interface InviteForm {
+  role: ParticipantRole
+  maxUses: string
+  expiresAt: string
+}
+
 const FRONTEND_URL = window.location.origin
 
 export function InvitePanel({ roomId }: Props) {
-  
   const [createOpen, setCreateOpen] = useState(false)
-  const [form, setForm] = useState<{
-    role: ParticipantRole
-    maxUses: string
-    expiresAt: string
-  }>({ role: 'PARTICIPANT', maxUses: '', expiresAt: '' })
 
-const { invites, isLoading } = useGetInvites(roomId)
+  const { register, handleSubmit, reset } = useForm<InviteForm>({
+    defaultValues: { role: 'PARTICIPANT', maxUses: '', expiresAt: '' },
+  })
 
-const {createInvite, isCreating} = useCreateInvite({roomId, options:{
-  onSuccess: () => {
-    setCreateOpen(false)
-  },
+  const { invites, isLoading } = useGetInvites(roomId)
 
-}})
+  const { createInvite, isCreating } = useCreateInvite({
+    roomId,
+    options: {
+      onSuccess: () => {
+        setCreateOpen(false)
+        reset()
+      },
+    },
+  })
 
- 
-
-const {revokeInvite} = useRevokeInvite({roomId,})
+  const { revokeInvite } = useRevokeInvite({ roomId })
 
   function copyLink(token: string) {
     navigator.clipboard.writeText(`${FRONTEND_URL}/invite/${token}`)
@@ -51,13 +57,13 @@ const {revokeInvite} = useRevokeInvite({roomId,})
 
   const activeInvites = invites?.filter((i) => !i.revoked) ?? []
 
-  const onCreateInvite = () => {
+  const onCreateInvite = handleSubmit((data) => {
     createInvite({
-      role: form.role,
-      maxUses: form.maxUses ? parseInt(form.maxUses, 10) : undefined,
-      expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : undefined,
+      role: data.role,
+      maxUses: data.maxUses ? parseInt(data.maxUses, 10) : undefined,
+      expiresAt: data.expiresAt ? new Date(data.expiresAt).toISOString() : undefined,
     })
-  }
+  })
 
   return (
     <div className="space-y-2 mr-1">
@@ -75,7 +81,9 @@ const {revokeInvite} = useRevokeInvite({roomId,})
       )}
 
       {activeInvites.length === 0 && !isLoading && (
-        <p className="text-sm font-semibold text-muted-foreground text-center py-2 border-2 border-dashed border-foreground/20">Nenhum convite ativo</p>
+        <p className="text-sm font-semibold text-muted-foreground text-center py-2 border-2 border-dashed border-foreground/20">
+          Nenhum convite ativo
+        </p>
       )}
 
       {activeInvites.map((invite) => (
@@ -124,18 +132,22 @@ const {revokeInvite} = useRevokeInvite({roomId,})
       ))}
 
       {/* Create Dialog */}
-      <Dialog open={createOpen} onOpenChange={(v) => !v && setCreateOpen(false)}>
+      <Dialog
+        open={createOpen}
+        onOpenChange={(v) => {
+          if (!v) { setCreateOpen(false); reset() }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Criar convite</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <form onSubmit={onCreateInvite} className="space-y-4">
             <div className="space-y-1">
               <Label>Role</Label>
               <select
                 className="w-full border-2 border-foreground rounded-none px-3 py-2 text-sm font-medium bg-card outline-none focus:shadow-brutal-sm cursor-pointer"
-                value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value as ParticipantRole })}
+                {...register('role')}
               >
                 <option value="PARTICIPANT">Participante</option>
                 <option value="OBSERVER">Observer</option>
@@ -146,26 +158,20 @@ const {revokeInvite} = useRevokeInvite({roomId,})
               <Input
                 type="number"
                 placeholder="Ilimitado"
-                value={form.maxUses}
-                onChange={(e) => setForm({ ...form, maxUses: e.target.value })}
+                {...register('maxUses')}
               />
             </div>
             <div className="space-y-1">
               <Label>Expira em (opcional)</Label>
               <Input
                 type="datetime-local"
-                value={form.expiresAt}
-                onChange={(e) => setForm({ ...form, expiresAt: e.target.value })}
+                {...register('expiresAt')}
               />
             </div>
-            <Button
-              className="w-full"  
-              onClick={onCreateInvite}          
-              disabled={isCreating}
-            >
+            <Button type="submit" className="w-full" disabled={isCreating}>
               {isCreating ? 'Criando...' : 'Criar e copiar link'}
             </Button>
-          </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

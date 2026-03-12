@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useForm, type UseFormReturn } from 'react-hook-form'
 import { Plus, Pencil, Trash2, CheckCircle2, Circle, PlayCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,7 +16,6 @@ import { useCreateStory } from '@/hooks/story/use-create-story'
 import { useUpdateStory } from '@/hooks/story/use-update-story'
 import { useDeleteStory } from '@/hooks/story/use-delete-story'
 import { useSelectStory } from '@/hooks/story/use-select-story'
-
 
 interface Props {
   stories: StoryResponse[]
@@ -37,47 +37,52 @@ function storyStatusIcon(status: StoryResponse['status']) {
 }
 
 export function StoryList({ stories, me, roomId, currentStoryId }: Props) {
-
   const isHost = me.role === 'HOST'
   const [createOpen, setCreateOpen] = useState(false)
   const [editStory, setEditStory] = useState<StoryResponse | null>(null)
-  const [form, setForm] = useState<StoryForm>({ title: '', description: '', externalRef: '' })
 
- const { createStory, isCreating}= useCreateStory({roomId, options:{
-  onSuccess: () => {
-    setCreateOpen(false)
-  },
-}})
+  const createForm = useForm<StoryForm>({
+    defaultValues: { title: '', description: '', externalRef: '' },
+  })
 
-const onCreateStory = () => {
-  createStory(form)
-}
+  const editForm = useForm<StoryForm>()
 
-const { updateStory, isUpdating } = useUpdateStory({ roomId, storyId: editStory?.id || '', options: {
-  onSuccess() {
-    setEditStory(null)
-  },
-  onError() {
-    setEditStory(null)
-  }
-} })
+  const { createStory, isCreating } = useCreateStory({
+    roomId,
+    options: {
+      onSuccess: () => {
+        setCreateOpen(false)
+        createForm.reset()
+      },
+    },
+  })
 
-  const onUpdateStory = () => {
-    if (!editStory) return
-    updateStory(form)
-  }
+  const { updateStory, isUpdating } = useUpdateStory({
+    roomId,
+    storyId: editStory?.id || '',
+    options: {
+      onSuccess() { setEditStory(null) },
+      onError() { setEditStory(null) },
+    },
+  })
 
   const { deleteStory } = useDeleteStory({ roomId, options: {} })
   const { selectStory } = useSelectStory({ roomId })
 
   function openEdit(story: StoryResponse) {
     setEditStory(story)
-    setForm({
+    editForm.reset({
       title: story.title,
       description: story.description ?? '',
       externalRef: story.externalRef ?? '',
     })
   }
+
+  const onCreateStory = createForm.handleSubmit((data) => createStory(data))
+  const onUpdateStory = editForm.handleSubmit((data) => {
+    if (!editStory) return
+    updateStory(data)
+  })
 
   const sorted = [...stories].sort((a, b) => a.orderIndex - b.orderIndex)
 
@@ -93,7 +98,7 @@ const { updateStory, isUpdating } = useUpdateStory({ roomId, storyId: editStory?
             variant="outline"
             className="h-7 px-2"
             onClick={() => {
-              setForm({ title: '', description: '', externalRef: '' })
+              createForm.reset()
               setCreateOpen(true)
             }}
           >
@@ -121,7 +126,6 @@ const { updateStory, isUpdating } = useUpdateStory({ roomId, storyId: editStory?
           <div className="mt-0.5 flex-shrink-0">{storyStatusIcon(story.status)}</div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold truncate">{story.title}</p>
-          
           </div>
           {story.finalEstimate && (
             <Badge variant="default" className="text-xs flex-shrink-0 bg-primary text-primary-foreground">
@@ -132,10 +136,7 @@ const { updateStory, isUpdating } = useUpdateStory({ roomId, storyId: editStory?
             <div className="flex gap-0.5 flex-shrink-0">
               <button
                 className="p-1 border border-foreground/30 hover:border-foreground hover:bg-muted cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  openEdit(story)
-                }}
+                onClick={(e) => { e.stopPropagation(); openEdit(story) }}
               >
                 <Pencil className="h-3 w-3" />
               </button>
@@ -154,32 +155,26 @@ const { updateStory, isUpdating } = useUpdateStory({ roomId, storyId: editStory?
       ))}
 
       {/* Create Dialog */}
-      <Dialog open={createOpen} onOpenChange={(v) => !v && setCreateOpen(false)}>
+      <Dialog open={createOpen} onOpenChange={(v) => { if (!v) { setCreateOpen(false); createForm.reset() } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Nova história</DialogTitle>
           </DialogHeader>
-          <StoryFormFields form={form} onChange={setForm} />
-          <Button
-            onClick={() => onCreateStory()}
-            disabled={!form.title.trim() || isCreating}
-          >
+          <StoryFormFields form={createForm} />
+          <Button onClick={onCreateStory} disabled={isCreating}>
             {isCreating ? 'Criando...' : 'Criar'}
           </Button>
         </DialogContent>
       </Dialog>
 
       {/* Edit Dialog */}
-      <Dialog open={!!editStory} onOpenChange={(v) => !v && setEditStory(null)}>
+      <Dialog open={!!editStory} onOpenChange={(v) => { if (!v) setEditStory(null) }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Editar história</DialogTitle>
           </DialogHeader>
-          <StoryFormFields form={form} onChange={setForm} />
-          <Button
-            onClick={() => onUpdateStory()}
-            disabled={!form.title.trim() || isUpdating}
-          >
+          <StoryFormFields form={editForm} />
+          <Button onClick={onUpdateStory} disabled={isUpdating}>
             {isUpdating ? 'Salvando...' : 'Salvar'}
           </Button>
         </DialogContent>
@@ -188,37 +183,22 @@ const { updateStory, isUpdating } = useUpdateStory({ roomId, storyId: editStory?
   )
 }
 
-function StoryFormFields({
-  form,
-  onChange,
-}: {
-  form: StoryForm
-  onChange: (f: StoryForm) => void
-}) {
+function StoryFormFields({ form }: { form: UseFormReturn<StoryForm> }) {
   return (
     <div className="space-y-3">
-      <div>
-        <Input
-          placeholder="Título *"
-          value={form.title}
-          onChange={(e) => onChange({ ...form, title: e.target.value })}
-        />
-      </div>
-      <div>
-        <Textarea
-          placeholder="Descrição (opcional)"
-          value={form.description}
-          onChange={(e) => onChange({ ...form, description: e.target.value })}
-          rows={3}
-        />
-      </div>
-      <div>
-        <Input
-          placeholder="Referência externa (ex: JIRA-123)"
-          value={form.externalRef}
-          onChange={(e) => onChange({ ...form, externalRef: e.target.value })}
-        />
-      </div>
+      <Input
+        placeholder="Título *"
+        {...form.register('title', { required: true })}
+      />
+      <Textarea
+        placeholder="Descrição (opcional)"
+        {...form.register('description')}
+        rows={3}
+      />
+      <Input
+        placeholder="Referência externa (ex: JIRA-123)"
+        {...form.register('externalRef')}
+      />
     </div>
   )
 }

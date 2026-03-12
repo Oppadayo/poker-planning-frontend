@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -37,10 +38,18 @@ export function VotingArea({
   const isHost = me.role === 'HOST'
   const isObserver = me.role === 'OBSERVER'
   const [selectedCard, setSelectedCard] = useState<string | null>(null)
-  const [finalEstimate, setFinalEstimate] = useState('')
-  const [customVote, setCustomVote] = useState('')
 
   const deckValues = DECK_VALUES[deckType as keyof typeof DECK_VALUES] ?? []
+
+  const finalizeForm = useForm<{ finalEstimate: string }>({
+    defaultValues: { finalEstimate: '' },
+  })
+
+  const customVoteForm = useForm<{ customVote: string }>({
+    defaultValues: { customVote: '' },
+  })
+
+  const finalEstimateValue = finalizeForm.watch('finalEstimate')
 
   const { startRound, isStarting } = useStartRound({
     roomId,
@@ -52,6 +61,7 @@ export function VotingArea({
     options: {
       onSuccess: (value) => {
         setSelectedCard(value)
+        customVoteForm.reset()
         onVoteSent?.(value)
       },
     },
@@ -68,11 +78,19 @@ export function VotingArea({
     roomId,
     options: {
       onSuccess: () => {
-        setFinalEstimate('')
+        finalizeForm.reset()
         setSelectedCard(null)
       },
     },
   })
+
+  const onFinalize = finalizeForm.handleSubmit(({ finalEstimate }) =>
+    finalizeRound(finalEstimate),
+  )
+
+  const onCustomVote = customVoteForm.handleSubmit(({ customVote }) =>
+    castVote(customVote.trim()),
+  )
 
   // No active round
   if (!round || round.status === 'FINALIZED') {
@@ -91,7 +109,7 @@ export function VotingArea({
             </div>
             {isHost && (
               <Button size="lg" onClick={() => startRound()} disabled={isStarting}>
-                {isStarting ? 'Iniciando...' : '▶ Iniciar votação'}
+                {isStarting ? 'Iniciando...' : 'Iniciar votação'}
               </Button>
             )}
             {!isHost && (
@@ -106,7 +124,6 @@ export function VotingArea({
       </div>
     )
   }
-
 
   const votes = round.votes ?? []
   const votedCount = votes.filter((v) => v.hasVoted).length
@@ -183,24 +200,15 @@ export function VotingArea({
               ))}
             </div>
           ) : (
-            <div className="flex gap-2 max-w-xs mx-auto">
+            <form onSubmit={onCustomVote} className="flex gap-2 max-w-xs mx-auto">
               <Input
                 placeholder="Valor customizado"
-                value={customVote}
-                onChange={(e) => setCustomVote(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && customVote.trim()) {
-                    castVote(customVote.trim())
-                  }
-                }}
+                {...customVoteForm.register('customVote', { required: true })}
               />
-              <Button
-                onClick={() => castVote(customVote.trim())}
-                disabled={!customVote.trim() || isCasting}
-              >
+              <Button type="submit" disabled={isCasting}>
                 Votar
               </Button>
-            </div>
+            </form>
           )}
         </div>
       )}
@@ -214,37 +222,25 @@ export function VotingArea({
       {isHost && (
         <div className="flex flex-wrap gap-2 justify-center pt-3 border-t-2 border-foreground">
           {round.status === 'VOTING' && (
-            <Button
-              variant="secondary"
-              onClick={() => revealVotes()}
-              disabled={isRevealing}
-            >
+            <Button variant="secondary" onClick={() => revealVotes()} disabled={isRevealing}>
               Revelar votos
             </Button>
           )}
           {round.status === 'REVEALED' && (
             <>
-              <Button
-                variant="outline"
-                onClick={() => resetRound()}
-                disabled={isResetting}
-              >
+              <Button variant="outline" onClick={() => resetRound()} disabled={isResetting}>
                 Revotar
               </Button>
-              <div className="flex gap-2 items-center">
+              <form onSubmit={onFinalize} className="flex gap-2 items-center">
                 <Input
                   placeholder="Estimativa final"
                   className="w-36"
-                  value={finalEstimate}
-                  onChange={(e) => setFinalEstimate(e.target.value)}
+                  {...finalizeForm.register('finalEstimate', { required: true })}
                 />
-                <Button
-                  onClick={() => finalizeRound(finalEstimate)}
-                  disabled={!finalEstimate.trim() || isFinalizing}
-                >
+                <Button type="submit" disabled={!finalEstimateValue?.trim() || isFinalizing}>
                   Finalizar
                 </Button>
-              </div>
+              </form>
             </>
           )}
         </div>

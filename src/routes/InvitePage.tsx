@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useForm } from 'react-hook-form'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,11 +12,20 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { getInvite, joinByInvite } from '@/api/invites'
 import { useIdentityStore } from '@/store/identityStore'
 
+interface JoinForm {
+  displayName: string
+}
+
 export function InvitePage() {
   const { token } = useParams<{ token: string }>()
   const navigate = useNavigate()
   const { displayName: savedName, setDisplayName, setGuestToken } = useIdentityStore()
-  const [displayName, setName] = useState(savedName || '')
+
+  const { register, handleSubmit, watch } = useForm<JoinForm>({
+    defaultValues: { displayName: savedName || '' },
+  })
+
+  const displayNameValue = watch('displayName')
 
   const {
     data: invite,
@@ -30,16 +39,20 @@ export function InvitePage() {
   })
 
   const joinMutation = useMutation({
-    mutationFn: () =>
-      joinByInvite(token!, { displayName: displayName.trim(), role: invite?.role }),
-    onSuccess: (res) => {
+    mutationFn: (displayName: string) =>
+      joinByInvite(token!, { displayName, role: invite?.role }),
+    onSuccess: (res, displayName) => {
       if (res.guestToken) {
         setGuestToken(res.room.id, res.guestToken)
       }
-      setDisplayName(displayName.trim())
+      setDisplayName(displayName)
       navigate(`/rooms/${res.room.id}`)
     },
     onError: () => toast.error('Convite inválido, expirado ou com uso máximo atingido'),
+  })
+
+  const onSubmit = handleSubmit(({ displayName }) => {
+    joinMutation.mutate(displayName.trim())
   })
 
   if (isLoading) {
@@ -92,11 +105,8 @@ export function InvitePage() {
     <div className="flex items-center justify-center min-h-screen p-4 bg-background">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          
           <CardTitle>Você foi convidado!</CardTitle>
-          <CardDescription>
-            Entre na sessão de Poker Planning
-          </CardDescription>
+          <CardDescription>Entre na sessão de Poker Planning</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex justify-center">
@@ -113,26 +123,24 @@ export function InvitePage() {
             </p>
           )}
 
-          <div className="space-y-1">
-            <Label htmlFor="displayName">Seu nome</Label>
-            <Input
-              id="displayName"
-              placeholder="Como você quer aparecer"
-              value={displayName}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && displayName.trim()) joinMutation.mutate()
-              }}
-            />
-          </div>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div className="space-y-1">
+              <Label htmlFor="displayName">Seu nome</Label>
+              <Input
+                id="displayName"
+                placeholder="Como você quer aparecer"
+                {...register('displayName', { required: true })}
+              />
+            </div>
 
-          <Button
-            className="w-full"
-            onClick={() => joinMutation.mutate()}
-            disabled={!displayName.trim() || joinMutation.isPending}
-          >
-            {joinMutation.isPending ? 'Entrando...' : 'Entrar na sala'}
-          </Button>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={!displayNameValue?.trim() || joinMutation.isPending}
+            >
+              {joinMutation.isPending ? 'Entrando...' : 'Entrar na sala'}
+            </Button>
+          </form>
 
           <button
             className="w-full text-sm text-muted-foreground hover:underline"
